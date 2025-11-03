@@ -1,24 +1,25 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
+from config import settings # Імпортуємо наші налаштування
 
-# URL для підключення до вашої бази даних PostgreSQL
-# Формат: "postgresql://user:password@host:port/dbname"
-DATABASE_URL = "postgresql://postgres:YANA2580@localhost:5432/DesignHub"
+# Використовуємо DATABASE_URL з settings
+DATABASE_URL = settings.DATABASE_URL
 
-# Створюємо "двигун" SQLAlchemy
 engine = create_engine(DATABASE_URL)
-
-# Створюємо фабрику сесій
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Базовий клас для декларативних моделей
 Base = declarative_base()
 
-# Функція-залежність для отримання сесії БД у ендпоінтах
+# === ПЕРЕМІЩЕНА ФУНКЦІЯ ===
+# Функція-генератор для створення сесії бази даних
 def get_db():
+    """
+    Залежність (Dependency) для отримання сесії бази даних.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+

@@ -1,78 +1,75 @@
-import models
-import crud
-from database import SessionLocal
-from config import settings
 from datetime import datetime, timedelta, timezone
-
+from typing import Optional
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from config import settings # Імпортуємо наші налаштування
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session 
+import schemas 
+from database import get_db # <--- ІМПОРТУЄМО get_db ТУТ
 
-# --- Контекст хешування паролів ---
+
+# === Налаштування Passlib ===
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- Схема OAuth2 ---
-# "tokenUrl" вказує на ендпоінт, де фронтенд буде отримувати токен
+# === Налаштування OAuth2 ===
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def get_db():
-    """Залежність для отримання сесії бази даних."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
+# === Налаштування JWT ===
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+# === Кінець налаштувань ===
+
+
+# === Функції безпеки ===
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Перевіряє, чи збігається пароль з хешем."""
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Повертає хеш пароля."""
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        password = password_bytes[:72].decode('utf-8', 'ignore')
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    """Створює JWT Access Token."""
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        # Використовуємо налаштування з .env
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        # Використовуємо налаштування за замовчуванням
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme), 
-    db: Session = Depends(get_db)
-) -> models.User:
-    """
-    Залежність (Dependency) для FastAPI.
-    Розшифровує токен, перевіряє його та повертає поточного користувача.
-    Якщо токен невалідний, генерує виняток HTTPException.
-    """
+async def get_current_user(
+    db: Session = Depends(get_db), # <--- ВИПРАВЛЕНО: Використовуємо імпортовану функцію
+    token: str = Depends(oauth2_scheme)
+):
+    # Імпортуємо тут, щоб уникнути циклічних імпортів
+    import crud 
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # Розшифровуємо токен
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        # "sub" (subject) - це email, який ми закодували при створенні токена
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
+        token_data = schemas.TokenData(email=email)
     except JWTError:
         raise credentials_exception
     
-    # Отримуємо користувача з бази даних
-    user = crud.get_user_by_email(db, email=email)
+    user = crud.get_user_by_email(db, email=token_data.email)
     if user is None:
         raise credentials_exception
-    
     return user
+
