@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 import models, schemas
-from security import get_password_hash
+from security import get_password_hash, verify_password
 from typing import List, Optional
 
 # --- CRUD для Користувачів (User) ---
@@ -27,6 +27,19 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    return db_user
+
+def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
+    """
+    Перевіряє email та пароль користувача.
+    Повертає об'єкт User у разі успіху, або None у разі невдачі.
+    """
+    db_user = get_user_by_email(db, email=email)
+    
+    # Перевіряємо, чи існує користувач і чи збігається пароль
+    if not db_user or not verify_password(password, db_user.password_hash):
+        return None
+    
     return db_user
 
 # --- CRUD для Категорій (Category) ---

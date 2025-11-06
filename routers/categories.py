@@ -2,18 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import crud, models, schemas, security
 from typing import List
+from database import get_db
 
 router = APIRouter(
-    prefix="/categories",
+    # prefix="/categories",
     tags=["categories"],
 )
 
-def get_db():
-    db = security.get_db()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = security.get_db()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 @router.get("/", response_model=List[schemas.Category])
 def read_categories(

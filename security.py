@@ -31,7 +31,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     password_bytes = password.encode('utf-8')
+    print('not passed')
+    print(len(password_bytes))
     if len(password_bytes) > 72:
+        print('passed')
         password = password_bytes[:72].decode('utf-8', 'ignore')
     return pwd_context.hash(password)
 

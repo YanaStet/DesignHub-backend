@@ -2,18 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import crud, models, schemas, security # Імпортуємо security
 from database import SessionLocal
+from database import get_db
 
 router = APIRouter(
-    prefix="/users",
+    # prefix="/users",
     tags=["users"],
 )
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 @router.post("/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
