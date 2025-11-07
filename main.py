@@ -9,7 +9,8 @@ from database import SessionLocal, engine, get_db
 from routers import users, works, categories, tags 
 
 # Створюємо всі таблиці в базі даних (якщо їх ще немає)
-models.Base.metadata.create_all(bind=engine)
+# РОЗКОМЕНТУВАТИ, ПРИ ПЕРШОМУ ЗАПУСКУ ДЛЯ СТВОРЕННЯ ТАБЛИЦЬ, ДАЛІ ЗАКОМКНЕНТУВАТИ
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
