@@ -2,17 +2,27 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import timedelta # <--- ОСЬ ВИПРАВЛЕННЯ
+from datetime import timedelta
+from fastapi.staticfiles import StaticFiles # <--- 1. ІМПОРТУЄМО StaticFiles
+import os # Додаємо імпорт os
 
 import crud, models, schemas, security, config
 from database import SessionLocal, engine, get_db 
-from routers import users, works, categories, tags 
+# === 2. ІМПОРТУЄМО НОВИЙ РОУТЕР ===
+from routers import users, works, categories, tags, uploads 
 
 # Створюємо всі таблиці в базі даних (якщо їх ще немає)
-# РОЗКОМЕНТУВАТИ, ПРИ ПЕРШОМУ ЗАПУСКУ ДЛЯ СТВОРЕННЯ ТАБЛИЦЬ, ДАЛІ ЗАКОМКНЕНТУВАТИ
-# models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# === 3. МОНТУЄМО СТАТИЧНУ ПАПКУ ===
+# Це робить файли з папки "static" доступними за шляхом "/static"
+# Наприклад: http://127.0.0.1:8000/static/images/my-image.jpg
+static_dir = "static"
+os.makedirs(static_dir, exist_ok=True) # Переконуємося, що папка існує
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 
 # === Налаштування CORS ===
 origins = [
@@ -37,10 +47,6 @@ def login_for_access_token(
     db: Session = Depends(get_db), 
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
-    """
-    Отримує email (в полі username) та пароль,
-    повертає JWT токен.
-    """
     user = crud.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(
@@ -48,7 +54,6 @@ def login_for_access_token(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # Тепер 'timedelta' буде визначено
     access_token_expires = timedelta(minutes=config.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
@@ -62,10 +67,11 @@ app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(works.router, prefix="/works", tags=["Works"])
 app.include_router(categories.router, prefix="/categories", tags=["Categories"])
 app.include_router(tags.router, prefix="/tags", tags=["Tags"])
+# === 4. ПІДКЛЮЧАЄМО НОВИЙ РОУТЕР ===
+app.include_router(uploads.router, tags=["Uploads"])
 # === Кінець підключення ===
 
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Designer Portfolio API!"}
-

@@ -1,9 +1,8 @@
-from pydantic import BaseModel, EmailStr
-from datetime import datetime
+from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 
 # --- Схеми для Тегів ---
-
 class TagBase(BaseModel):
     name: str
 
@@ -17,7 +16,6 @@ class Tag(TagBase):
         from_attributes = True
 
 # --- Схеми для Категорій ---
-
 class CategoryBase(BaseModel):
     name: str
 
@@ -30,64 +28,78 @@ class Category(CategoryBase):
     class Config:
         from_attributes = True
 
-# --- Схеми для Користувача (оновлені) ---
-
+# --- Схеми для Користувача (User) ---
+# Ці схеми потрібні, щоб `Work` міг показувати, хто дизайнер
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str
     firstName: str
     lastName: str
+    role: Optional[str] = 'designer'
 
 class UserCreate(UserBase):
     password: str
-    role: str = "user"
 
 class User(UserBase):
     id: int
-    role: str
     registration_date: datetime
+    # works: List['Work'] = [] # Можна додати, якщо потрібен зворотний зв'язок
 
     class Config:
         from_attributes = True
 
-# --- Схеми для Робіт ---
-
+# --- Схеми для Робіт (Work) ---
 class WorkBase(BaseModel):
     title: str
     description: Optional[str] = None
-    image_url: Optional[str] = None
+    # === ОСЬ ЗМІНА ===
+    # Тепер image_url є частиною базової схеми
+    image_url: Optional[str] = None 
 
 class WorkCreate(WorkBase):
-    """Схема для СТВОРЕННЯ роботи. Приймає ID категорій та назви тегів."""
-    category_ids: List[int] = []
-    tag_names: List[str] = []
+    # При створенні ми приймаємо ID категорій та назви тегів
+    categories_ids: List[int] = []
+    tags_names: List[str] = []
 
 class Work(WorkBase):
-    """Схема для ЧИТАННЯ роботи. Повертає повні об'єкти."""
     id: int
+    designer_id: int
     upload_date: datetime
     views_count: int
     
-    # Вкладені схеми для зв'язків
-    designer: User # Повертає повний об'єкт User
-    categories: List[Category] = [] # Повертає список об'єктів Category
-    tags: List[Tag] = [] # Повертає список об'єктів Tag
+    # Вкладені схеми для зручності фронтенду
+    designer: User
+    categories: List[Category] = []
+    tags: List[Tag] = []
 
     class Config:
         from_attributes = True
 
-# --- Схеми для токена ---
-
+# --- Схеми для Автентифікації ---
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
-    """
-    Ця схема валідує дані (payload) всередині JWT токена.
-    """
     email: Optional[str] = None
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+# --- Схеми для Профілю Дизайнера ---
+# (Залишаємо базові, можна розширити за потреби)
+class DesignerProfileBase(BaseModel):
+    specialization: Optional[str] = None
+    bio: Optional[str] = None
+    experience: Optional[int] = 0
 
+class DesignerProfileCreate(DesignerProfileBase):
+    pass
+
+class DesignerProfile(DesignerProfileBase):
+    designer_id: int
+    rating: float
+    views_count: int
+    work_amount: int
+
+    class Config:
+        from_attributes = True
+
+# Додаємо зворотне посилання для User, щоб уникнути помилок визначення
+User.model_rebuild()
