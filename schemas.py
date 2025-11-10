@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from models import UserRole # <--- 1. Імпортуємо наш Enum
 
 # --- Схеми для Тегів ---
 class TagBase(BaseModel):
@@ -34,7 +35,9 @@ class UserBase(BaseModel):
     email: str
     firstName: str
     lastName: str
-    role: Optional[str] = 'designer'
+    # --- 2. Використовуємо Enum тут ---
+    # Pydantic автоматично валідує, що рядок є одним зі значень Enum
+    role: UserRole = UserRole.designer 
 
 class UserCreate(UserBase):
     password: str
@@ -51,8 +54,6 @@ class User(UserBase):
 class WorkBase(BaseModel):
     title: str
     description: Optional[str] = None
-    # === ОСЬ ЗМІНА ===
-    # Тепер image_url є частиною базової схеми
     image_url: Optional[str] = None 
 
 class WorkCreate(WorkBase):
@@ -83,7 +84,6 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 # --- Схеми для Профілю Дизайнера ---
-# (Залишаємо базові, можна розширити за потреби)
 class DesignerProfileBase(BaseModel):
     specialization: Optional[str] = None
     bio: Optional[str] = None

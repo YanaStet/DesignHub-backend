@@ -1,5 +1,13 @@
--- Видаляємо старі таблиці, якщо вони існують, для чистого старту
+-- Видаляємо старі типи та таблиці
 DROP TABLE IF EXISTS "Work_Category", "Work_Tag", "Comment", "Work", "Designer_Profile", "User", "Category", "Tag" CASCADE;
+DROP TYPE IF EXISTS user_role_enum CASCADE;
+
+-- === НОВЕ: Створюємо тип Enum для ролей ===
+CREATE TYPE user_role_enum AS ENUM (
+  'designer',
+  'admin',
+  'moderator'
+);
 
 -- Таблиця користувачів
 CREATE TABLE "User" (
@@ -7,7 +15,8 @@ CREATE TABLE "User" (
   "firstName" VARCHAR(100) NOT NULL,
   "lastName" VARCHAR(100) NOT NULL,
   "email" VARCHAR(255) UNIQUE NOT NULL,
-  "role" VARCHAR(50) DEFAULT 'designer',
+  -- === ЗМІНЕНО: Використовуємо наш новий тип Enum ===
+  "role" user_role_enum NOT NULL DEFAULT 'designer',
   "password_hash" VARCHAR(255) NOT NULL,
   "registration_date" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -49,8 +58,10 @@ CREATE TABLE "Tag" (
 -- Таблиця коментарів
 CREATE TABLE "Comment" (
   "id" SERIAL PRIMARY KEY,
+  -- Змінено назви для ясності, відповідно до вашої діаграми
   "author_id" INTEGER NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
   "work_id" INTEGER NOT NULL REFERENCES "Work"("id") ON DELETE CASCADE,
+  -- "receiver_id" видалено, оскільки власника роботи можна отримати через work_id
   "rating_score" INTEGER CHECK (rating_score >= 1 AND rating_score <= 5),
   "comment_text" TEXT NOT NULL,
   "review_date" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
