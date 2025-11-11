@@ -38,7 +38,6 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
-# === НОВА ФУНКЦІЯ ===
 def delete_user(db: Session, user_id: int):
     """Видаляє користувача за ID."""
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -90,7 +89,7 @@ def create_tag(db: Session, tag: schemas.TagCreate):
     return db_tag
 
 # === CRUD для Робіт ===
-# ... (весь існуючий код для get_works, get_work, create_work) ...
+# ... (весь існуючий код для get_works, get_work, create_work, delete_work) ...
 def get_works(db: Session, skip: int = 0, limit: int = 100):
     """
     Отримує список робіт, одразу підтягуючи пов'язані дані
@@ -157,7 +156,6 @@ def create_work(db: Session, work: schemas.WorkCreate, designer_id: int):
     db.refresh(db_work)
     return db_work
 
-# === НОВА ФУНКЦІЯ ДЛЯ ВИДАЛЕННЯ РОБОТИ ===
 def delete_work(db: Session, work_id: int):
     """Видаляє роботу за ID."""
     db_work = db.query(models.Work).filter(models.Work.id == work_id).first()
@@ -165,3 +163,46 @@ def delete_work(db: Session, work_id: int):
         db.delete(db_work)
         db.commit()
     return db_work
+
+# === НОВИЙ БЛОК: CRUD для Профілю Дизайнера ===
+
+def get_designer_profile(db: Session, user_id: int):
+    """Отримує профіль дизайнера за ID користувача."""
+    # Ми можемо додати .options(joinedload(models.Designer_Profile.designer))
+    # але оскільки ми шукаємо по user_id, ми вже знаємо, хто дизайнер.
+    return db.query(models.Designer_Profile).filter(models.Designer_Profile.designer_id == user_id).first()
+
+def upsert_designer_profile(db: Session, user_id: int, profile_data: schemas.DesignerProfileCreate):
+    """
+    Оновлює профіль, якщо він існує, або створює, якщо ні (upsert).
+    """
+    # 1. Шукаємо існуючий профіль
+    db_profile = get_designer_profile(db, user_id)
+    
+    # 2. Отримуємо дані з Pydantic-схеми
+    # exclude_unset=True означає, що ми будемо оновлювати лише ті поля,
+    # які користувач явно передав у JSON.
+    update_data = profile_data.model_dump(exclude_unset=True)
+
+    if db_profile:
+        # === ОНОВЛЕННЯ (UPDATE) ===
+        for key, value in update_data.items():
+            setattr(db_profile, key, value)
+    else:
+        # === СТВОРЕННЯ (CREATE) ===
+        # Перевіряємо, чи користувач, якому ми створюємо профіль, є дизайнером
+        user = get_user(db, user_id)
+        if not user or user.role.value != 'designer':
+            # Це не має статися, якщо ендпоінт захищений, але це гарна перевірка
+            return None 
+            
+        db_profile = models.Designer_Profile(
+            **update_data,
+            designer_id=user_id
+        )
+        db.add(db_profile)
+        
+    # 3. Зберігаємо зміни
+    db.commit()
+    db.refresh(db_profile)
+    return db_profile
