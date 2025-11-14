@@ -1,63 +1,75 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
-from models import UserRole # <--- 1. Імпортуємо наш Enum
+from models import UserRole # Імпортуємо Enum
 
-# --- Схеми для Тегів ---
-class TagBase(BaseModel):
-    name: str
+# === Базові Схеми (для вкладених об'єктів) ===
 
-class TagCreate(TagBase):
-    pass
-
-class Tag(TagBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-# --- Схеми для Категорій ---
-class CategoryBase(BaseModel):
-    name: str
-
-class CategoryCreate(CategoryBase):
-    pass
-
-class Category(CategoryBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-# --- Схеми для Користувача (User) ---
-# Ці схеми потрібні, щоб `Work` міг показувати, хто дизайнер
 class UserBase(BaseModel):
+    id: int
+    firstName: str
+    lastName: str
+    
+    class Config:
+        from_attributes = True # Pydantic v2 (orm_mode)
+
+class TagBase(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+class CategoryBase(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+# === Схеми Користувача (User) ===
+
+class UserCreate(BaseModel):
     email: str
     firstName: str
     lastName: str
-    # --- 2. Використовуємо Enum тут ---
-    # Pydantic автоматично валідує, що рядок є одним зі значень Enum
-    role: UserRole = UserRole.designer 
+    password: str
+    role: UserRole # Використовуємо Enum
 
-class UserCreate(UserBase):
+class UserLogin(BaseModel):
+    email: str
     password: str
 
 class User(UserBase):
-    id: int
+    email: str
+    role: UserRole
     registration_date: datetime
-    # works: List['Work'] = [] # Можна додати, якщо потрібен зворотний зв'язок
 
-    class Config:
-        from_attributes = True
+# === Схеми Категорій (Category) ===
 
-# --- Схеми для Робіт (Work) ---
+class CategoryCreate(BaseModel):
+    name: str
+
+class Category(CategoryBase):
+    pass # Наразі не має додаткових полів
+
+# === Схеми Тегів (Tag) ===
+
+class TagCreate(BaseModel):
+    name: str
+
+class Tag(TagBase):
+    pass # Наразі не має додаткових полів
+
+# === Схеми Робіт (Work) ===
+
 class WorkBase(BaseModel):
     title: str
     description: Optional[str] = None
-    image_url: Optional[str] = None 
+    image_url: Optional[str] = None
 
 class WorkCreate(WorkBase):
-    # При створенні ми приймаємо ID категорій та назви тегів
+    # При створенні ми очікуємо списки ID/назв
     categories_ids: List[int] = []
     tags_names: List[str] = []
 
@@ -67,23 +79,16 @@ class Work(WorkBase):
     upload_date: datetime
     views_count: int
     
-    # Вкладені схеми для зручності фронтенду
-    designer: User
-    categories: List[Category] = []
-    tags: List[Tag] = []
-
+    # Вкладені об'єкти для читання
+    designer: UserBase
+    categories: List[CategoryBase] = []
+    tags: List[TagBase] = []
+    
     class Config:
         from_attributes = True
 
-# --- Схеми для Автентифікації ---
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+# === Схеми Профілю Дизайнера ===
 
-class TokenData(BaseModel):
-    email: Optional[str] = None
-
-# --- Схеми для Профілю Дизайнера ---
 class DesignerProfileBase(BaseModel):
     specialization: Optional[str] = None
     bio: Optional[str] = None
@@ -94,12 +99,44 @@ class DesignerProfileCreate(DesignerProfileBase):
 
 class DesignerProfile(DesignerProfileBase):
     designer_id: int
-    rating: float
+    rating: float # Використовуємо float, а не Decimal
     views_count: int
     work_amount: int
 
     class Config:
         from_attributes = True
+        
+# === НОВІ СХЕМИ ДЛЯ КОМЕНТАРІВ ===
 
-# Додаємо зворотне посилання для User, щоб уникнути помилок визначення
-User.model_rebuild()
+class CommentBase(BaseModel):
+    comment_text: str
+    rating_score: Optional[int] = None # Рейтинг не обов'язковий при кожному коментарі
+
+class CommentCreate(CommentBase):
+    work_id: int # При створенні коментаря, ми маємо знати, до якої роботи він
+
+class CommentUpdate(BaseModel):
+    # При оновленні, дозволяємо змінювати лише ці поля
+    comment_text: Optional[str] = None
+    rating_score: Optional[int] = None
+
+class Comment(CommentBase):
+    id: int
+    author_id: int
+    work_id: int
+    review_date: datetime
+    
+    # Включаємо базову інформацію про автора
+    author: UserBase 
+
+    class Config:
+        from_attributes = True
+
+# === Схеми для Токенів (Token) ===
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
