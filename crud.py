@@ -129,39 +129,53 @@ def get_works(
     skip: int = 0,
     limit: int = 20,
     categories_ids: Optional[List[int]] = None,
-    tags_names: Optional[List[str]] = None
+    tags_names: Optional[List[str]] = None,
+    search_query: Optional[str] = None # 💡 НОВИЙ ПАРАМЕТР
 ):
     """
-    Отримує список робіт з фільтрацією та пагінацією.
-    Також завантажує пов'язані дані.
+    Отримує список робіт з фільтрацією, пошуком та пагінацією.
     """
     query = db.query(models.Work).options(
         joinedload(models.Work.designer),
         joinedload(models.Work.categories),
         joinedload(models.Work.tags),
-        # --- ОНОВЛЕНО: Завантажуємо коментарі та їх авторів ---
         subqueryload(models.Work.comments).joinedload(models.Comment.author)
     )
 
     if categories_ids:
-        # Переконуємось, що ми фільтруємо роботи, які мають *хоча б одну* з категорій
         query = query.join(models.WorkCategory).filter(
             models.WorkCategory.c.category_id.in_(categories_ids)
         )
     if tags_names:
-        # Аналогічно для тегів
         query = query.join(models.WorkTag).join(models.Tag).filter(
             models.Tag.name.in_(tags_names)
         )
+        
+    # === 💡 ЛОГІКА ПОШУКУ ===
+    if search_query:
+        # Перетворюємо запит на паттерн для LIKE (наприклад, '%фотошоп%')
+        search_pattern = f"%{search_query}%"
+        
+        # Додаємо умову OR для пошуку в заголовку АБО описі
+        query = query.filter(
+            # Використовуємо .ilike() для пошуку без чутливості до регістру
+            models.Work.title.ilike(search_pattern) | 
+            models.Work.description.ilike(search_pattern)
+        )
+    # =========================
 
     works = (
-        query.order_by(models.Work.upload_date.desc())
+        # Використовуємо .distinct() після JOIN, щоб уникнути дублікатів до об'єднання
+        # (це краще, ніж dict.fromkeys у кінці, якщо ви використовуєте JOIN)
+        query.distinct() 
+        .order_by(models.Work.upload_date.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
-    # --- ОНОВЛЕНО: Використовуємо set для уникнення дублікатів через JOIN ---
-    return list(dict.fromkeys(works))
+    # Примітка: Ви можете повернути works без list(dict.fromkeys(works)) 
+    # якщо використовуєте .distinct()
+    return works
 
 
 def get_works_by_designer(db: Session, designer_id: int, skip: int = 0, limit: int = 20):

@@ -28,21 +28,21 @@ def read_works(
     skip: int = 0, 
     limit: int = 20, 
     db: Session = Depends(get_db),
-    # === НОВІ ПАРАМЕТРИ ФІЛЬТРАЦІЇ ===
-    # Ми очікуємо рядок "1,2,3" і перетворимо його на список
+    # === НОВИЙ ПАРАМЕТР ===
+    q: Optional[str] = Query(None, description="Рядок пошуку по заголовку або опису роботи."), 
+    # =====================
     categories: Optional[str] = Query(None, description="Список ID категорій через кому (напр., '1,2,3')"),
-    # Ми очікуємо рядок "design,art" і перетворимо його на список
     tags: Optional[str] = Query(None, description="Список назв тегів через кому (напр., 'design,art')")
 ):
     """
-    Отримує список робіт з пагінацією та фільтрацією.
-    Це публічний ендпоінт.
+    Отримує список робіт з пагінацією, фільтрацією та пошуком.
     """
-    # Конвертуємо рядки параметрів у списки
+    # ... (Конвертація categories та tags залишається без змін) ...
     categories_ids_list: Optional[List[int]] = None
     if categories:
+        # ... (логіка конвертації) ...
         try:
-            categories_ids_list = [int(id_str.strip()) for id_str in categories.split(',')]
+             categories_ids_list = [int(id_str.strip()) for id_str in categories.split(',')]
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -59,7 +59,8 @@ def read_works(
         skip=skip, 
         limit=limit, 
         categories_ids=categories_ids_list, 
-        tags_names=tags_names_list
+        tags_names=tags_names_list,
+        search_query=q # 💡 ПЕРЕДАЄМО НОВИЙ ПАРАМЕТР
     )
     return works
 
