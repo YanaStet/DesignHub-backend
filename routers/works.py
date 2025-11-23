@@ -138,3 +138,35 @@ def delete_work(
         
     deleted_work = crud.delete_work(db, work_id=work_id)
     return deleted_work
+
+
+@router.post("/{work_id}/view", status_code=status.HTTP_200_OK)
+def view_work(
+    work_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Зареєструвати перегляд роботи.
+    Має викликатися фронтендом, коли користувач відкриває сторінку роботи.
+    Зараховує перегляд лише 1 раз для кожного користувача.
+    """
+    # Перевіряємо, чи існує робота
+    db_work = crud.get_work(db, work_id=work_id)
+    if not db_work:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Роботу не знайдено."
+        )
+    
+    # Не зараховуємо перегляд, якщо автор дивиться свою роботу (опційно)
+    if db_work.designer_id == current_user.id:
+        return {"message": "Author view ignored"}
+
+    # Викликаємо нашу нову CRUD-функцію
+    is_new_view = crud.register_work_view(db, work_id=work_id, user_id=current_user.id)
+    
+    if is_new_view:
+        return {"message": "View counted"}
+    else:
+        return {"message": "Already viewed"}

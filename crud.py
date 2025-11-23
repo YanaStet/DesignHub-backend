@@ -419,3 +419,41 @@ def delete_comment(db: Session, comment_id: int):
         _recalculate_designer_rating(db, designer_id=designer_id)
         
     return db_comment # Повертаємо об'єкт, який ще є в пам'яті
+
+def register_work_view(db: Session, work_id: int, user_id: int):
+    """
+    Реєструє перегляд роботи користувачем.
+    Якщо користувач вже бачив цю роботу, нічого не робить.
+    Якщо це перший перегляд, збільшує лічильник у роботі та у профілі дизайнера.
+    """
+    
+    # 1. Перевіряємо, чи цей користувач вже бачив цю роботу
+    existing_view = db.query(models.WorkView).filter(
+        models.WorkView.work_id == work_id,
+        models.WorkView.user_id == user_id
+    ).first()
+    
+    if existing_view:
+        # Вже бачив - нічого не робимо
+        return False
+
+    # 2. Якщо не бачив - створюємо запис про перегляд
+    new_view = models.WorkView(work_id=work_id, user_id=user_id)
+    db.add(new_view)
+    
+    # 3. Збільшуємо лічильник у самій роботі
+    db_work = db.query(models.Work).filter(models.Work.id == work_id).first()
+    if db_work:
+        db_work.views_count += 1
+        
+        # 4. Збільшуємо лічильник у профілі дизайнера
+        # Знаходимо профіль автора роботи
+        designer_profile = db.query(models.Designer_Profile).filter(
+            models.Designer_Profile.designer_id == db_work.designer_id
+        ).first()
+        
+        if designer_profile:
+            designer_profile.views_count += 1
+    
+    db.commit()
+    return True
