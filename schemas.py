@@ -93,9 +93,16 @@ class DesignerProfileBase(BaseModel):
     specialization: Optional[str] = None
     bio: Optional[str] = None
     experience: Optional[int] = 0
+    header_image_url: str | None = None
+    avatar_url: Optional[str] = None
 
 class DesignerProfileCreate(DesignerProfileBase):
     pass
+
+class DesignerProfileUpdate(BaseModel):
+    specialization: Optional[str] = None
+    bio: Optional[str] = None
+    experience: Optional[int] = None
 
 class DesignerProfile(DesignerProfileBase):
     designer_id: int

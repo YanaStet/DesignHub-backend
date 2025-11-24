@@ -48,6 +48,8 @@ class Designer_Profile(Base):
     rating = Column(DECIMAL(3, 2), default=0.00)
     views_count = Column(Integer, default=0)
     work_amount = Column(Integer, default=0)
+    header_image_url = Column(String(255), nullable=True)
+    avatar_url = Column(String(255), nullable=True)
     designer = relationship("User", back_populates="designer_profile")
 
 class Work(Base):

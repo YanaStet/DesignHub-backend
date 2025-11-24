@@ -24,7 +24,9 @@ CREATE TABLE "Designer_Profile" (
   "experience" INTEGER DEFAULT 0, 
   "rating" DECIMAL(3, 2) DEFAULT 0.00,
   "views_count" INTEGER DEFAULT 0,
-  "work_amount" INTEGER DEFAULT 0
+  "work_amount" INTEGER DEFAULT 0,
+  "header_image_url" VARCHAR(255),
+  "avatar_url" VARCHAR(255)
 );
 
 CREATE TABLE "Work" (
