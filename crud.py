@@ -235,6 +235,49 @@ def delete_work(db: Session, work_id: int):
         
     return db_work
 
+def update_work(db: Session, db_work: models.Work, work_update: schemas.WorkUpdate):
+    """
+    Оновлює існуючу роботу.
+    Змінює прості поля (назва, опис) та зв'язки Many-to-Many (категорії, теги).
+    """
+    # 1. Перетворюємо Pydantic-модель у словник, виключаючи пусті поля (None)
+    update_data = work_update.model_dump(exclude_unset=True)
+
+    # 2. Оновлення КАТЕГОРІЙ (Many-to-Many)
+    # Якщо список категорій передано, ми повністю замінюємо старі категорії на нові
+    if "categories_ids" in update_data:
+        categories_ids = update_data.pop("categories_ids")
+        # Знаходимо всі об'єкти категорій за переданими ID
+        new_categories = db.query(models.Category).filter(
+            models.Category.id.in_(categories_ids)
+        ).all()
+        # Присвоюємо список об'єктів. SQLAlchemy автоматично оновить проміжну таблицю.
+        db_work.categories = new_categories
+
+    # 3. Оновлення ТЕГІВ (Many-to-Many)
+    # Аналогічно, якщо передано теги - замінюємо старий набір новим
+    if "tags_names" in update_data:
+        tags_names = update_data.pop("tags_names")
+        new_tags = []
+        for tag_name in tags_names:
+            # Використовуємо твою існуючу функцію create_tag_or_get
+            # щоб не дублювати теги, якщо вони вже є в базі
+            tag = create_tag_or_get(db, tag_name=tag_name)
+            new_tags.append(tag)
+        db_work.tags = new_tags
+
+    # 4. Оновлення простих полів (title, description, image_url)
+    for key, value in update_data.items():
+        setattr(db_work, key, value)
+
+    db.add(db_work)
+    db.commit()
+    db.refresh(db_work)
+
+    # Повертаємо об'єкт через get_work, щоб у відповіді 
+    # точно були підвантажені всі зв'язки (автор, коментарі і т.д.)
+    return get_work(db, work_id=db_work.id)
+
 # === Функції для Профілю Дизайнера (Designer_Profile) ===
 
 def get_designer_profile(db: Session, user_id: int):

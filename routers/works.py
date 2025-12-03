@@ -170,3 +170,39 @@ def view_work(
         return {"message": "View counted"}
     else:
         return {"message": "Already viewed"}
+    
+# === Ендпоінт для ОНОВЛЕННЯ роботи ===
+@router.put("/{work_id}", response_model=schemas.Work)
+def update_work(
+    work_id: int,
+    work_update: schemas.WorkUpdate, # Тобі потрібна ця схема (див. пункт 2)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Оновлює дані роботи.
+    Доступно лише якщо:
+    1. Ви адміністратор (`role == 'admin'`).
+    2. Ви автор цієї роботи.
+    """
+    # 1. Шукаємо роботу в БД
+    db_work = crud.get_work(db, work_id=work_id)
+    if db_work is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Роботу не знайдено."
+        )
+
+    # 2. Перевірка прав (аналогічно як у delete)
+    is_admin = current_user.role.value == 'admin'
+    is_author = db_work.designer_id == current_user.id
+
+    if not is_admin and not is_author:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ви не маєте прав для редагування цієї роботи."
+        )
+
+    # 3. Викликаємо CRUD функцію для оновлення
+    updated_work = crud.update_work(db, db_work=db_work, work_update=work_update)
+    return updated_work

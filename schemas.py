@@ -87,6 +87,14 @@ class Work(WorkBase):
     class Config:
         from_attributes = True
 
+class WorkUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    # Опціональні списки для повного перезапису категорій та тегів
+    categories_ids: Optional[List[int]] = None
+    tags_names: Optional[List[str]] = None
+
 # === Схеми Профілю Дизайнера ===
 
 class DesignerProfileBase(BaseModel):
